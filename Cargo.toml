@@ -1,0 +1,9 @@
+[package]
+name = "backend_server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+boa_engine = "0.17"
+tiny_http = "0.12"
+serde_json = "1.0"
