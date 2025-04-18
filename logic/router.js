@@ -11,7 +11,7 @@ function route(path, payload) {
         case "/report/saas/simulation":
             return saas.simulation(payload);
         default:
-            return { error: "Unknown path" };
+            return { error: "Unknown path - " + path };
     }
 }
 
