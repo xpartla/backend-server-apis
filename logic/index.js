@@ -1,5 +1,3 @@
-function dispatch(path, payload) {
-    return route(path, payload);
-}
+import {dispatch} from './router.js';
 
 globalThis.dispatch = dispatch;

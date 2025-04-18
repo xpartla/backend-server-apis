@@ -1,18 +1,17 @@
-function route(path, payload) {
-    switch (path) {
-        case "/report/freelancer":
-            return handleFreelancer(payload);
-        case "/report/freelancer/hourly-rate":
-            return freelancer.hourly(payload);
-        case "/report/digital-creator":
-            return digitalCreator(payload);
-        case "/report/saas":
-            return saas(payload);
-        case "/report/saas/simulation":
-            return saas.simulation(payload);
-        default:
-            return { error: "Unknown path - " + path };
+import {freelancerReport} from './services/freelancer.js'
+
+const routes = {
+    'POST /report/freelancer': freelancerReport,
+};
+
+export function dispatch(req, res) {
+    const routeKey = `${req.method} ${req.path}`;
+    const handler = routes[routeKey];
+
+    if (handler) {
+        handler(req, res);
+    } else {
+        res.status = 404;
+        res.body = {error: `No handler for ${routeKey}`};
     }
 }
-
-globalThis.route = route;

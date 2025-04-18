@@ -1,7 +1,7 @@
 use tiny_http::{Server, Method, Response, Header};
-use boa_engine::{Context, JsResult, Source};
-use std::fs;
 use std::io::Cursor;
+use rquickjs::{Runtime, Context, Value, Function};
+use serde_json::{json, Value as JsonValue};
 
 fn main() {
     let server = Server::http("0.0.0.0:8000").unwrap();
@@ -21,7 +21,7 @@ fn main() {
             let js_result = process_post_with_js(&path, &body);
             let res = create_json_response(js_result);
             request.respond(res).unwrap();
-        } else if(request.method() == &Method::Get) {
+        } else if request.method() == &Method::Get {
             let path = request.url().to_string();
             
             let mut body = String::new();
@@ -30,7 +30,7 @@ fn main() {
                 request.respond(res).unwrap();
                 continue;
             }
-            let js_result = process_get_with_js(&path, &body);
+            let js_result = process_post_with_js(&path, &body);
             let res = create_json_response(js_result);
             request.respond(res).unwrap();
         } else {
@@ -70,40 +70,42 @@ fn create_json_response(js_result: String) -> Response<Cursor<Vec<u8>>> {
 }
 
 fn process_post_with_js(path: &str, payload_json: &str) -> String {
-    let mut context = Context::default();
+    let rt = Runtime::new().unwrap();
+    let ctx = Context::full(&rt).unwrap();
 
-    let files = vec!["./logic/services/freelancer.js", "./logic/router.js", "./logic/index.js"];
-    for file in files {
-        let js_code = fs::read_to_string(file).unwrap_or_else(|_| {
-            panic!("Unable to read JS file: {}", file);
+    ctx.with(|ctx| {
+
+        let _: () = ctx.eval_file("./logic/index.js").expect("Could not load JS file");
+        let body: JsonValue = serde_json::from_str(payload_json).unwrap_or_else(|_| json!({}));
+
+        let req_json: JsonValue = json!({
+            "method": "POST",
+            "path": path,
+            "body": body
         });
 
-        context
-            .eval(Source::from_bytes(js_code.as_bytes()))
-            .expect(&format!("JS eval failed for {}", file));
-    }
+        let res_json: JsonValue = json!({
+            "status": 200,
+            "body": {}
+        });
 
-    let js_call = format!(
-        "JSON.stringify(dispatch(`{}`, JSON.parse(`{}`)))",
-        path,
-        payload_json.replace('`', "\\`")
-    );
+        let req_json_str = serde_json::to_string(&req_json).unwrap();
+        let req: Value = ctx.eval(format!("({})", req_json_str)).unwrap();
 
-    match context.eval(Source::from_bytes(js_call.as_bytes())) {
-        Ok(val) => match val.to_string(&mut context) {
-            Ok(js_str) => js_str.to_std_string().unwrap_or_else(|_| "{\"error\": \"Invalid JS string\"}".to_string()),
-            Err(_) => "{\"error\": \"No output\"}".to_string(),
-        },
-        Err(err) => {
-            let err_msg = format!(
-                "{{\"error\": \"JS Error: {}\"}}",
-                err.to_string()
-            );
-            err_msg
-        }
-    }
+        let res_json_str = serde_json::to_string(&res_json).unwrap();
+        let res: Value = ctx.eval(format!("({})", res_json_str)).unwrap();
+
+
+
+        let dispatch: Function = ctx.globals().get("dispatch").unwrap();
+        dispatch.call::<(Value, Value), ()>((req.clone(), res.clone())).unwrap();
+
+        let res_str: String = ctx.eval("JSON.stringify(res)").unwrap();
+        let res_final: serde_json::Value = serde_json::from_str(&res_str).unwrap();
+        res_final["body"].to_string()
+    })
 }
 
-fn process_get_with_js(path: &str, payload: &str) -> String {
-    
-}
+// fn process_get_with_js(path: &str, payload: &str) -> String {
+//     
+// }
