@@ -18,9 +18,21 @@ function freelancerReport(req, res) {
   console.log("Response body:", res.body);
 }
 
+// logic/services/status.js
+function getStatus(req, res) {
+  console.log("getStatus called");
+  console.log("Query params:", req.query);
+  const name = req.query.name || "anonymous";
+  res.body = {
+    status: "ok",
+    hello: `Hi ${name}`
+  };
+}
+
 // logic/router.js
 var routes = {
-  "POST /report/freelancer": freelancerReport
+  "POST /report/freelancer": freelancerReport,
+  "GET /status": getStatus
 };
 function dispatch(req, res) {
   const routeKey = `${req.method} ${req.path}`;

@@ -1,8 +1,10 @@
+use std::collections::HashMap;
 use tiny_http::{Server, Method, Response, Header};
 use boa_engine::{Context, Source, property::Attribute, object::ObjectInitializer, native_function::NativeFunction, JsValue, JsString, JsError};
 use std::fs;
 use std::io::Cursor;
 use boa_engine::object::FunctionObjectBuilder;
+use url::Url;
 
 const JSFILE: &str = "./logic/bundle.js";
 
@@ -80,9 +82,9 @@ fn process_post_with_js(path: &str, payload_json: &str) -> String {
     context
         .eval(Source::from_bytes(js_code.as_bytes()))
         .expect(&format!("JS eval failed for {}", file));
-    
+
     let js_call = format_js_for_post(path, payload_json);
-    
+
     match_js_string(&mut context, js_call)
 }
 
@@ -103,7 +105,20 @@ fn process_get_with_js(path: &str, payload_json: &str) -> String {
     match_js_string(&mut context, js_call)
 }
 
-fn format_js_for_post(path :&str, payload_json :&str) -> String {
+fn parse_query_params(url: &str) -> String {
+    if let Ok(full_url) = Url::parse(&format!("http://localhost{}", url)) {
+        let query_map: HashMap<_, _> = full_url.query_pairs().into_owned().collect();
+        serde_json::to_string(&query_map).unwrap_or("{}".to_string())
+    } else {
+        "{}".to_string()
+    }
+}
+
+
+fn format_js_for_post(path: &str, payload_json: &str) -> String {
+    let body_value: serde_json::Value = serde_json::from_str(payload_json).unwrap_or_else(|_| serde_json::json!({}));
+    let body_js = body_value.to_string();
+
     format!(
         r#"
         (function() {{
@@ -118,26 +133,36 @@ fn format_js_for_post(path :&str, payload_json :&str) -> String {
         }})()
     "#,
         path = path,
-        body = payload_json
+        body = body_js
     )
 }
 
-fn format_js_for_get(path :&str, payload_json :&str) -> String {
+fn format_js_for_get(path: &str, payload_json: &str) -> String {
+    let query_json = parse_query_params(path);
+    let query_value: serde_json::Value = serde_json::from_str(&query_json).unwrap_or_else(|_| serde_json::json!({}));
+    let body_value: serde_json::Value = serde_json::from_str(payload_json).unwrap_or_else(|_| serde_json::json!({}));
+
+    let query_js = query_value.to_string();
+    let body_js = body_value.to_string();
+    let clean_path = path.split('?').next().unwrap_or(path);
+
     format!(
         r#"
         (function() {{
             let req = {{
                 method: "GET",
                 path: "{path}",
-                body: {body}
+                body: {body},
+                query: {query}
             }};
             let res = {{}};
             dispatch(req, res);
             return JSON.stringify(res);
         }})()
     "#,
-        path = path,
-        body = payload_json
+        path = clean_path,
+        body = body_js,
+        query = query_js
     )
 }
 
