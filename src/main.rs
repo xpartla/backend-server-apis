@@ -1,7 +1,8 @@
 use tiny_http::{Server, Method, Response, Header};
+use boa_engine::{Context, Source, property::Attribute, object::ObjectInitializer, native_function::NativeFunction, JsValue, JsString, JsError};
+use std::fs;
 use std::io::Cursor;
-use rquickjs::{Runtime, Context, Value, Function};
-use serde_json::{json, Value as JsonValue};
+use boa_engine::object::FunctionObjectBuilder;
 
 fn main() {
     let server = Server::http("0.0.0.0:8000").unwrap();
@@ -70,75 +71,102 @@ fn create_json_response(js_result: String) -> Response<Cursor<Vec<u8>>> {
 }
 
 fn process_post_with_js(path: &str, payload_json: &str) -> String {
-    let rt = Runtime::new().unwrap();
-    let ctx = Context::full(&rt).unwrap();
+    let mut context = Context::default();
+    inject_console(&mut context);
+    let file = "./logic/bundle.js";
+    let js_code = fs::read_to_string(file).unwrap_or_else(|_| {
+        panic!("Unable to read JS file: {}", file);
+    });
 
-    ctx.with(|ctx| {
+    context
+        .eval(Source::from_bytes(js_code.as_bytes()))
+        .expect(&format!("JS eval failed for {}", file));
 
-        let result: Result<(), _> = ctx.eval_file("./logic/bundle.js");
-        if let Err(err) = result {
-            use rquickjs::Error;
-            match &err {
-                Error::Exception => {},
-                _ => {
-                    eprintln!("QuickJS failed: {}", err);
-                    return json!({
-                        "error": "Failed to load bundle.js",
-                        "details": format!("{}", err)
-                    }).to_string();
-                }
-            }
+
+    let js_call = format!(
+        r#"
+        (function() {{
+            let req = {{
+                method: "POST",
+                path: "{path}",
+                body: {body}
+            }};
+            let res = {{}};
+            dispatch(req, res);
+            return JSON.stringify(res);
+        }})()
+    "#,
+        path = path,
+        body = payload_json
+    );
+
+
+    match context.eval(Source::from_bytes(js_call.as_bytes())) {
+        Ok(val) => match val.to_string(&mut context) {
+            Ok(js_str) => js_str.to_std_string().unwrap_or_else(|_| "{\"error\": \"Invalid JS string\"}".to_string()),
+            Err(_) => "{\"error\": \"No output\"}".to_string(),
+        },
+        Err(err) => {
+            let err_msg = format!(
+                "{{\"error\": \"JS Error: {}\"}}",
+                err.to_string()
+            );
+            err_msg
         }
-
-        let body: JsonValue = serde_json::from_str(payload_json).unwrap_or_else(|_| json!({}));
-
-        let req_json: JsonValue = json!({
-            "method": "POST",
-            "path": path,
-            "body": body
-        });
-
-        let res_json: JsonValue = json!({
-            "status": 200,
-            "body": {}
-        });
-
-        let req_json_str = serde_json::to_string(&req_json).unwrap();
-        let req: Value = ctx.eval(format!("({})", req_json_str)).unwrap();
-
-        let res_json_str = serde_json::to_string(&res_json).unwrap();
-        let res: Value = ctx.eval(format!("({})", res_json_str)).unwrap();
-
-        let dispatch: Function = ctx.globals().get("dispatch").unwrap();
-        let result = dispatch.call::<(Value, Value), ()>((req.clone(), res.clone()));
-        match result {
-            Ok(_) => println!("JavaScript call succeeded"),
-            Err(err) => eprintln!("JavaScript call failed: {:?}", err),
-        }
-
-        // Debugging: Check the res type and serialize it
-        let res_check: String = ctx.eval("typeof res").unwrap();
-        eprintln!("res type: {}", res_check);
-        
-        let res_check: String = ctx.eval("JSON.stringify(res)").unwrap_or_else(|_| String::from("{}"));
-        eprintln!("Serialized res: {}", res_check);
-
-        let res_str: String = match ctx.eval("JSON.stringify(res)") {
-            Ok(result) => result,
-            Err(err) => {
-                eprintln!("QuickJS evaluation failed: {}", err);
-                return json!({
-                    "error": "Failed to serialize response",
-                    "details": format!("{}", err)
-                }).to_string();
-            }
-        };
-
-        let res_final: serde_json::Value = serde_json::from_str(&res_str).unwrap();
-        res_final["body"].to_string()
-    })
+    }
 }
 
+fn create_msg(args: &[JsValue], context: &mut Context) -> Result<String, JsError> {
+    let msg = args
+        .iter()
+        .map(|val| val.to_string(context))
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .map(|s| s.to_std_string().unwrap_or_default())
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    Ok(msg)
+}
+
+fn inject_console(context: &mut Context) {
+    let log_fn = unsafe {
+        NativeFunction::from_closure(|_this, args, context| {
+            let msg = create_msg(args, context)?;
+            println!("[console.log] {}", msg);
+            Ok(JsValue::undefined())
+        })
+    };
+
+    let error_fn = unsafe {
+        NativeFunction::from_closure(|_this, args, context| {
+            let msg = create_msg(args, context)?;
+            eprintln!("[console.error] {}", msg);
+            Ok(JsValue::undefined())
+        })
+    };
+
+    let realm = context.realm();
+
+    let log_fn_obj = FunctionObjectBuilder::new(realm, log_fn)
+        .name("log")
+        .length(1)
+        .build();
+
+    let error_fn_obj = FunctionObjectBuilder::new(realm, error_fn)
+        .name("error")
+        .length(1)
+        .build();
+
+    let console = ObjectInitializer::new(context)
+        .property(JsString::from("log"), log_fn_obj, Attribute::all())
+        .property(JsString::from("error"), error_fn_obj, Attribute::all())
+        .build();
+
+    context
+        .register_global_property(JsString::from("console"), console, Attribute::all())
+        .unwrap();
+}
 
 // fn process_get_with_js(path: &str, payload: &str) -> String {
 //
