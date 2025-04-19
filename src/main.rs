@@ -1,14 +1,21 @@
 use std::collections::HashMap;
 use tiny_http::{Server, Method, Response, Header};
 use boa_engine::{Context, Source, property::Attribute, object::ObjectInitializer, native_function::NativeFunction, JsValue, JsString, JsError};
-use std::fs;
+use std::{fs, thread};
 use std::io::Cursor;
+use std::path::Path;
 use boa_engine::object::FunctionObjectBuilder;
 use url::Url;
+use notify::{RecursiveMode, Result as NotifyResult, Watcher, EventKind, Event, PollWatcher, Config};
+use std::process::Command;
+use std::sync::mpsc::channel;
+use std::time::{Duration, Instant};
 
-const JSFILE: &str = "./logic/bundle.js";
+const JSFILE: &str = "./dist/bundle.js";
 
 fn main() {
+    start_js_watcher().expect("Failed to start JS watcher");
+
     let server = Server::http("0.0.0.0:8000").unwrap();
     println!("Running on http://0.0.0.0:8000");
 
@@ -226,4 +233,61 @@ fn inject_console(context: &mut Context) {
     context
         .register_global_property(JsString::from("console"), console, Attribute::all())
         .unwrap();
+}
+
+pub fn start_js_watcher() -> NotifyResult<thread::JoinHandle<()>> {
+    let (tx, rx) = channel::<Event>();
+
+    let handle = thread::spawn(move || {
+        let mut watcher = PollWatcher::new(
+            move |res: Result<Event, notify::Error>| {
+                if let Ok(event) = res {
+                    let _ = tx.send(event);
+                }
+            },
+            Config::default().with_poll_interval(Duration::from_secs(1)),
+        ).expect("Failed to initialize watcher");
+
+        watcher
+            .watch(Path::new("./logic"), RecursiveMode::Recursive)
+            .expect("Failed to start watching ./logic");
+
+        println!("Watching ./logic for changes...");
+
+        let debounce_duration = Duration::from_millis(500);
+        let mut last_event = Instant::now() - debounce_duration;
+
+        while let Ok(event) = rx.recv() {
+            if matches!(event.kind, EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_)) {
+                let now = Instant::now();
+                if now.duration_since(last_event) >= debounce_duration {
+                    last_event = now;
+                    println!("Change detected. Bundling JS...");
+
+                    let output = Command::new("./esbuild.exe")
+                        .arg("logic/index.js")
+                        .arg("--bundle")
+                        .arg("--platform=neutral")
+                        .arg("--format=esm")
+                        .arg("--outfile=dist/bundle.js")
+                        .output();
+
+                    match output {
+                        Ok(result) if result.status.success() => {
+                            println!("JS bundling complete");
+                        }
+                        Ok(result) => {
+                            eprintln!("JS bundling failed:");
+                            eprintln!("{}", String::from_utf8_lossy(&result.stderr));
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to execute esbuild: {}", e);
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    Ok(handle)
 }

@@ -24,7 +24,7 @@ function getStatus(req, res) {
   console.log("Query params:", req.query);
   const name = req.query.name || "anonymous";
   res.body = {
-    status: "ok",
+    status: "ok2",
     hello: `Hi ${name}`
   };
 }

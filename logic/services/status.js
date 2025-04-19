@@ -5,7 +5,7 @@ export function getStatus(req, res) {
     const name = req.query.name || "anonymous";
 
     res.body = {
-        status: "ok",
+        status: "ok2",
         hello: `Hi ${name}`
     };
 }
