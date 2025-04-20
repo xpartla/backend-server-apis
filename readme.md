@@ -1,4 +1,4 @@
-# 🦀 Krab-JS server – A Minimal Rust + JS Runtime for Web Backends
+# 🦀 Krab-JS server – A Minimal Rust + JS Runtime
 
 ## Overview
 
