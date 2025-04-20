@@ -32,6 +32,56 @@ function freelancerHourly(req, res) {
   };
 }
 
+// logic/challenges/freelancerChallenge.js
+function freelancerChallenge1(req, res) {
+  const {
+    fixedCosts = 0,
+    projectRate = 0
+  } = req.body;
+  const breakEvenProjects = projectRate > 0 ? Math.ceil(fixedCosts / projectRate) : 0;
+  const passed = breakEvenProjects <= 5;
+  res.body = {
+    challengeId: 1,
+    passed,
+    message: passed ? `You only need ${breakEvenProjects} projects to break even.` : `You need ${breakEvenProjects} projects to break even. Try adjusting your project rate or fixed costs.`,
+    result: { breakEvenProjects }
+  };
+}
+function freelancerChallenge2(req, res) {
+  const {
+    fixedCosts = 0,
+    profitGoal = 1e3,
+    projectRate = 0,
+    laborHoursPerProject = 0
+  } = req.body;
+  const netProfitPerProject = projectRate;
+  const projectsNeeded = netProfitPerProject > 0 ? Math.ceil((fixedCosts + profitGoal) / netProfitPerProject) : 0;
+  const totalHours = projectsNeeded * laborHoursPerProject;
+  const passed = totalHours <= 50 && profitGoal >= 1e3;
+  res.body = {
+    challengeId: 2,
+    passed,
+    message: passed ? `You\u2019ll reach your ${profitGoal} goal in ${totalHours} hours.` : `It\u2019ll take ${totalHours} hours. Try a higher rate or fewer hours per project.`,
+    result: { projectsNeeded, totalHours }
+  };
+}
+function freelancerChallenge3(req, res) {
+  const {
+    fixedCosts = 0,
+    profitGoal = 0,
+    laborHoursPerProject = 0
+  } = req.body;
+  const totalIncome = fixedCosts + profitGoal;
+  const hourlyRate = laborHoursPerProject > 0 ? +(totalIncome / laborHoursPerProject).toFixed(2) : 0;
+  const passed = hourlyRate <= 30;
+  res.body = {
+    challengeId: 3,
+    passed,
+    message: passed ? `Your hourly rate is ${hourlyRate}, which is sustainable.` : `Hourly rate is ${hourlyRate}. Consider reducing costs or increasing hours.`,
+    result: { hourlyRate }
+  };
+}
+
 // logic/services/digital_creator.js
 function digitalCreatorReport(req, res) {
   const {
@@ -126,14 +176,22 @@ function getStatus(req, res) {
 var routes = {
   "POST /report/freelancer": freelancerReport,
   "POST /report/freelancer/hourly-rate": freelancerHourly,
+  "POST /challenge/freelancer-1": freelancerChallenge1,
+  "POST /challenge/freelancer-2": freelancerChallenge2,
+  "POST /challenge/freelancer-3": freelancerChallenge3,
   "POST /report/digital-creator": digitalCreatorReport,
   "POST /report/saas": saasReport,
   "POST /report/saas-simulation": simulateSaas,
   "GET /status": getStatus
 };
 function dispatch(req, res) {
-  const routeKey = `${req.method} ${req.path}`;
-  const handler = routes[routeKey];
+  let routeKey = `${req.method} ${req.path}`;
+  let handler = routes[routeKey];
+  if (!handler && req.path.startsWith("/challenge/freelancer/")) {
+    req.params = { id: req.path.split("/").pop() };
+    routeKey = `${req.method} /challenge/freelancer/:id`;
+    handler = routes[routeKey];
+  }
   if (handler) {
     handler(req, res);
   } else {
