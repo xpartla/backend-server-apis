@@ -61,8 +61,11 @@ function freelancerChallenge2(req, res) {
   res.body = {
     challengeId: 2,
     passed,
-    message: passed ? `You\u2019ll reach your ${profitGoal} goal in ${totalHours} hours.` : `It\u2019ll take ${totalHours} hours. Try a higher rate or fewer hours per project.`,
-    result: { projectsNeeded, totalHours }
+    message: passed ? `You\u2019ll reach your ${profitGoal}\u20AC goal in ${totalHours} hours.` : `It\u2019ll take ${totalHours} hours. Try a higher rate or fewer hours per project.`,
+    result: {
+      projectsNeeded,
+      totalHours
+    }
   };
 }
 function freelancerChallenge3(req, res) {
@@ -77,8 +80,153 @@ function freelancerChallenge3(req, res) {
   res.body = {
     challengeId: 3,
     passed,
-    message: passed ? `Your hourly rate is ${hourlyRate}, which is sustainable.` : `Hourly rate is ${hourlyRate}. Consider reducing costs or increasing hours.`,
+    message: passed ? `Your hourly rate is ${hourlyRate}\u20AC, which is sustainable.` : `Hourly rate is ${hourlyRate}\u20AC. Consider reducing costs or increasing hours.`,
     result: { hourlyRate }
+  };
+}
+
+// logic/challenges/creatorChallenges.js
+function digitalCreatorChallenge1(req, res) {
+  const {
+    fixedCosts = 0,
+    productPrice = 0,
+    platformFeePercent = 0
+  } = req.body;
+  const conversionRate = 1;
+  const netProfitPerSale = +(productPrice * (1 - platformFeePercent / 100)).toFixed(2);
+  const breakEvenSales = netProfitPerSale > 0 ? Math.ceil(fixedCosts / netProfitPerSale) : 0;
+  const visitorsNeeded = conversionRate > 0 ? Math.ceil(breakEvenSales / (conversionRate / 100)) : 0;
+  const passed = visitorsNeeded <= 5e3;
+  res.body = {
+    challengeId: 1,
+    passed,
+    message: passed ? `Great, you only need ${visitorsNeeded} visitors at 1% conversion to break even.` : `You need ${visitorsNeeded} visitors to break even. Try raising your price or lowering costs.`,
+    result: {
+      visitorsNeeded,
+      breakEvenSales,
+      netProfitPerSale
+    }
+  };
+}
+function digitalCreatorChallenge2(req, res) {
+  const {
+    fixedCosts = 0,
+    productPrice = 0,
+    platformFeePercent = 0,
+    conversionRate = 0
+  } = req.body;
+  const profitGoal = 1e3;
+  const netProfitPerSale = +(productPrice * (1 - platformFeePercent / 100)).toFixed(2);
+  const salesForProfitGoal = netProfitPerSale > 0 ? Math.ceil((fixedCosts + profitGoal) / netProfitPerSale) : 0;
+  const visitorsNeeded = conversionRate > 0 ? Math.ceil(salesForProfitGoal / (conversionRate / 100)) : 0;
+  const passed = visitorsNeeded <= 1e4;
+  res.body = {
+    challengeId: 2,
+    passed,
+    message: passed ? `Awesome, you can hit ${profitGoal}\u20AC profit with just ${visitorsNeeded} visitors.` : `You\u2019d need ${visitorsNeeded} visitors. Try increasing conversion rate or adjusting pricing.`,
+    result: {
+      salesForProfitGoal,
+      visitorsNeeded,
+      netProfitPerSale
+    }
+  };
+}
+function digitalCreatorChallenge3(req, res) {
+  const {
+    fixedCosts = 0,
+    productPrice = 0,
+    platformFeePercent = 0
+  } = req.body;
+  const netProfitPerSale = +(productPrice * (1 - platformFeePercent / 100)).toFixed(2);
+  const breakEvenSales = netProfitPerSale > 0 ? Math.ceil(fixedCosts / netProfitPerSale) : 0;
+  const platformCutPerSale = productPrice * (platformFeePercent / 100);
+  const totalPlatformFees = +(breakEvenSales * platformCutPerSale).toFixed(2);
+  const passed = totalPlatformFees <= 200;
+  res.body = {
+    challengeId: 3,
+    passed,
+    message: passed ? `Great job, platform fees at break-even are just ${totalPlatformFees}\u20AC.` : `Platform takes ${totalPlatformFees}\u20AC. Try lowering fees or increasing your product price.`,
+    result: {
+      breakEvenSales,
+      totalPlatformFees,
+      platformCutPerSale
+    }
+  };
+}
+
+// logic/challenges/saasChallenges.js
+function saasChallenge1(req, res) {
+  const {
+    fixedCosts,
+    pricePerUser,
+    variableCostPerUser,
+    churnRate
+  } = req.body;
+  const profitPerUser = pricePerUser - variableCostPerUser;
+  let breakEvenUsers;
+  if (churnRate && churnRate > 0) {
+    const customerLifetimeMonths = 1 / (churnRate / 100);
+    const cltv = profitPerUser * customerLifetimeMonths;
+    breakEvenUsers = Math.ceil(fixedCosts / cltv);
+  } else {
+    breakEvenUsers = Math.ceil(fixedCosts / profitPerUser);
+  }
+  const passed = breakEvenUsers <= 200;
+  res.body = {
+    challengeId: 1,
+    passed,
+    message: passed ? `You can break even with ${breakEvenUsers} users.` : `You need ${breakEvenUsers} users to break even. Try adjusting your pricing or reducing churn.`,
+    result: { breakEvenUsers }
+  };
+}
+function saasChallenge2(req, res) {
+  const {
+    fixedCosts,
+    profitGoal = 5e3,
+    pricePerUser,
+    variableCostPerUser,
+    churnRate
+  } = req.body;
+  const profitPerUser = pricePerUser - variableCostPerUser;
+  let usersForProfitGoal;
+  if (churnRate && churnRate > 0) {
+    const customerLifetimeMonths = 1 / (churnRate / 100);
+    const cltv = profitPerUser * customerLifetimeMonths;
+    usersForProfitGoal = Math.ceil((fixedCosts + profitGoal) / cltv);
+  } else {
+    usersForProfitGoal = Math.ceil((fixedCosts + profitGoal) / profitPerUser);
+  }
+  const totalRevenue = usersForProfitGoal * pricePerUser;
+  const passed = usersForProfitGoal <= 500 && totalRevenue >= fixedCosts + profitGoal;
+  res.body = {
+    challengeId: 2,
+    passed,
+    message: passed ? `Good job, you can reach your goal of ${profitGoal}\u20AC with ${usersForProfitGoal} users.` : `It will take ${usersForProfitGoal} users. Consider adjusting your pricing or reducing churn.`,
+    result: {
+      usersForProfitGoal,
+      totalRevenue
+    }
+  };
+}
+function saasChallenge3(req, res) {
+  const {
+    pricePerUser,
+    variableCostPerUser,
+    churnRate
+  } = req.body;
+  const profitPerUser = pricePerUser - variableCostPerUser;
+  let customerLifetimeMonths = null;
+  let cltv = null;
+  if (churnRate && churnRate > 0) {
+    customerLifetimeMonths = 1 / (churnRate / 100);
+    cltv = profitPerUser * customerLifetimeMonths;
+  }
+  const passed = cltv >= 100;
+  res.body = {
+    challengeId: 3,
+    passed,
+    message: passed ? `Your CLTV is ${cltv}\u20AC, which is greater than 100\u20AC. Great work!` : `Your CLTV is ${cltv}\u20AC. Try increasing your price or reducing churn.`,
+    result: { cltv }
   };
 }
 
@@ -179,19 +327,20 @@ var routes = {
   "POST /challenge/freelancer-1": freelancerChallenge1,
   "POST /challenge/freelancer-2": freelancerChallenge2,
   "POST /challenge/freelancer-3": freelancerChallenge3,
+  "POST /challenge/digital-creator-1": digitalCreatorChallenge1,
+  "POST /challenge/digital-creator-2": digitalCreatorChallenge2,
+  "POST /challenge/digital-creator-3": digitalCreatorChallenge3,
+  "POST /challenge/saas-1": saasChallenge1,
+  "POST /challenge/saas-2": saasChallenge2,
+  "POST /challenge/saas-3": saasChallenge3,
   "POST /report/digital-creator": digitalCreatorReport,
   "POST /report/saas": saasReport,
   "POST /report/saas-simulation": simulateSaas,
   "GET /status": getStatus
 };
 function dispatch(req, res) {
-  let routeKey = `${req.method} ${req.path}`;
-  let handler = routes[routeKey];
-  if (!handler && req.path.startsWith("/challenge/freelancer/")) {
-    req.params = { id: req.path.split("/").pop() };
-    routeKey = `${req.method} /challenge/freelancer/:id`;
-    handler = routes[routeKey];
-  }
+  const routeKey = `${req.method} ${req.path}`;
+  const handler = routes[routeKey];
   if (handler) {
     handler(req, res);
   } else {

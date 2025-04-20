@@ -1,6 +1,4 @@
-//TODO: spisat dokumentaciu
 export function freelancerChallenge1(req, res) {
-    //challenge: choose a project rate and fixed costs to break even within 5 projects
     const {
         fixedCosts = 0,
         projectRate = 0
@@ -20,7 +18,6 @@ export function freelancerChallenge1(req, res) {
 }
 
 export function freelancerChallenge2(req, res) {
-    //challenge: reach 1000 (or more) in profit while working under 50 hours [fixedCosts, laborHoursPerProject, projectRate]
     const {
         fixedCosts = 0,
         profitGoal = 1000,
@@ -37,14 +34,16 @@ export function freelancerChallenge2(req, res) {
         challengeId: 2,
         passed,
         message: passed
-            ? `You’ll reach your ${profitGoal} goal in ${totalHours} hours.`
+            ? `You’ll reach your ${profitGoal}€ goal in ${totalHours} hours.`
             : `It’ll take ${totalHours} hours. Try a higher rate or fewer hours per project.`,
-        result: { projectsNeeded, totalHours }
+        result: {
+            projectsNeeded,
+            totalHours
+        }
     };
 }
 
 export function freelancerChallenge3(req, res) {
-    //challenge: with a fixedCosts and desired profit, keep hourly rate under 30.
     const {
         fixedCosts = 0,
         profitGoal = 0,
@@ -59,8 +58,8 @@ export function freelancerChallenge3(req, res) {
         challengeId: 3,
         passed,
         message: passed
-            ? `Your hourly rate is ${hourlyRate}, which is sustainable.`
-            : `Hourly rate is ${hourlyRate}. Consider reducing costs or increasing hours.`,
+            ? `Your hourly rate is ${hourlyRate}€, which is sustainable.`
+            : `Hourly rate is ${hourlyRate}€. Consider reducing costs or increasing hours.`,
         result: { hourlyRate }
     };
 }
