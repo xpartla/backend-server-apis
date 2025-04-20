@@ -32,7 +32,7 @@ Krab-JS server is a lightweight, self-contained HTTP server and Javascript Runti
 - Add support for the rest of HTTP methods
 - Add support for middleware (enable hooks)
 - File uploading
-- Web-based playground
+- Multi-threading
 
 ---
 
