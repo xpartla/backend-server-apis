@@ -95,7 +95,3 @@ export function getStatus(req, res) {
 ```
 
 ---
-
-## Author
-
-Built by [*xpartla*](https://github.com/xpartla) 🦀🦀🦀
