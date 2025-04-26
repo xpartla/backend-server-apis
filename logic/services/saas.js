@@ -8,22 +8,35 @@ export function simulateSaas(req, res) {
     const {
         pricePerUser,
         variableCostPerUser,
+        priceReductionModifier = 10,
+        variableCostModifier = 10
     } = req.body;
 
+    const validPriceReduction = Math.min(Math.max(priceReductionModifier, 1), 99);
+    const validVariableCostIncrease = Math.min(Math.max(variableCostModifier, 1), 99);
+
     const original = calculateSaasReport(req.body);
-    const priceMinus10 = calculateSaasReport({
+
+    const priceReduced = calculateSaasReport({
         ...req.body,
-        pricePerUser: pricePerUser * 0.9
+        pricePerUser: pricePerUser * (1 - validPriceReduction / 100)
     });
-    const variableCostPlus10 = calculateSaasReport({
+
+    const variableCostIncreased = calculateSaasReport({
         ...req.body,
-        variableCostPerUser: variableCostPerUser * 1.1
+        variableCostPerUser: variableCostPerUser * (1 + validVariableCostIncrease / 100)
     });
 
     res.body = {
         original,
-        priceMinus10,
-        variableCostPlus10
+        priceReduced: {
+            modifierApplied: `${validPriceReduction}% reduction`,
+            report: priceReduced
+        },
+        variableCostIncreased: {
+            modifierApplied: `${validVariableCostIncrease}% increase`,
+            report: variableCostIncreased
+        }
     };
     return res.body;
 }

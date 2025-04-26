@@ -97,12 +97,16 @@ Calculates how many subscribers are needed to cover fixed costs and reach profit
 Returns variations of the SaaS break-even calculation with simulated changes in pricing and costs
 
 **Input Parameters stay the same as in report/saas**
+Also expected modifiers
+- `priceReductionModifier` - value in %, reducing subscription price in simulation
+- `variableCostModifier` - value in %, increasing variable costs in simulation
+If not provided, both default to 10% in the simulation
 
 **Response interpretation:**
 
 - `original` - standard calculation
-- `priceMinus10` - Simulation where the price is reduced by 10%
-- `variableCostPlus10` - Simulation where the variable cost is increased by 10%
+- `priceReduced` - Simulation where the price is reduced by the value of the modifier
+- `variableCostIncreased` - Simulation where the variable cost is increased by the value of the modifier
 
 ---
 
