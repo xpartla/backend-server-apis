@@ -14,7 +14,7 @@ pub fn process_post_with_js(path: &str, payload_json: &str) -> String {
     context.eval(Source::from_bytes(js_code.as_bytes()))
         .expect("JS eval failed");
 
-    let js_call = format_js_for_post(path, payload_json);
+    let js_call = format_js_for_request("POST", path, payload_json);
     eval_js_string(&mut context, js_call)
 }
 
@@ -28,7 +28,7 @@ pub fn process_get_with_js(path: &str, payload_json: &str) -> String {
     context.eval(Source::from_bytes(js_code.as_bytes()))
         .expect("JS eval failed");
 
-    let js_call = format_js_for_get(path, payload_json);
+    let js_call = format_js_for_request("GET", path, payload_json);
     eval_js_string(&mut context, js_call)
 }
 
@@ -42,27 +42,12 @@ fn eval_js_string(context: &mut Context, js_call: String) -> String {
     }
 }
 
-fn format_js_for_post(path: &str, payload_json: &str) -> String {
+fn format_js_for_request(method: &str, path: &str, payload_json: &str) -> String {
     let body_js = serde_json::from_str::<serde_json::Value>(payload_json)
         .unwrap_or_default()
         .to_string();
 
-    format!(r#"
-        (function() {{
-            let req = {{ method: "POST", path: "{path}", body: {body} }};
-            let res = {{}};
-            dispatch(req, res);
-            return JSON.stringify(res);
-        }})()
-    "#, path = path, body = body_js)
-}
-
-fn format_js_for_get(path: &str, payload_json: &str) -> String {
     let query_json = parse_query_params(path);
-    let body_js = serde_json::from_str::<serde_json::Value>(payload_json)
-        .unwrap_or_default()
-        .to_string();
-
     let query_js = serde_json::from_str::<serde_json::Value>(&query_json)
         .unwrap_or_default()
         .to_string();
@@ -71,12 +56,12 @@ fn format_js_for_get(path: &str, payload_json: &str) -> String {
 
     format!(r#"
         (function() {{
-            let req = {{ method: "GET", path: "{path}", body: {body}, query: {query} }};
+            let req = {{ method: "{method}", path: "{path}", body: {body}, query: {query} }};
             let res = {{}};
             dispatch(req, res);
             return JSON.stringify(res);
         }})()
-    "#, path = clean_path, body = body_js, query = query_js)
+    "#, method = method, path = clean_path, body = body_js, query = query_js)
 }
 
 fn inject_console(context: &mut Context) {
