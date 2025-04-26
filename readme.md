@@ -21,18 +21,17 @@ Krab-JS server is a lightweight, self-contained HTTP server and Javascript Runti
 ## HTTP methods
 
 - **GET** -> parsing query params from URL calls, accepts JSON body, calls `dispatch(req, res)` in JS
-- **POST** -> parsing JSON body and calls `dispatch(req, res)` in JS
+- **POST** -> parsing query params and JSON body and calls `dispatch(req, res)` in JS
 - **others** -> not implemented yet (returns 404 atm.)
 
 ---
 
 ## Future plans
 
-- Add support for query params for POST requests
 - Add support for the rest of HTTP methods
 - Add support for middleware (enable hooks)
 - File uploading
-- Multi-threading
+- Performance increase -> Multi-threading
 
 ---
 
@@ -95,3 +94,23 @@ export function getStatus(req, res) {
 ```
 
 ---
+
+### How to release standalone version
+
+Current system (win64) release:
+```bash
+cargo build --release
+```
+
+Cross compile to Linux:
+```bash
+cargo install cross
+cross build --release --target x86_64-unknown-linux-gnu
+```
+
+Cross compile to Mac:
+```bash
+TBD
+```
+
+After building, go to `./target/release/backend_server`, copy over `logic`, `dist`, `esbuild.exe` from `root of project`. Now you are ready to zip the target directory `backend_server` or run the `backend_server.exe`. Build on the API inside `./logic`.
