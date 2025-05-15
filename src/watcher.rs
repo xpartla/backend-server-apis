@@ -15,10 +15,10 @@ pub fn start_js_watcher() -> NotifyResult<thread::JoinHandle<()>> {
         ).expect("Failed to initialize watcher");
 
         watcher
-            .watch(Path::new("./logic"), RecursiveMode::Recursive)
-            .expect("Failed to start watching ./logic");
+            .watch(Path::new("./backend"), RecursiveMode::Recursive)
+            .expect("Failed to start watching ./backend");
 
-        println!("Watching ./logic for changes...");
+        println!("Watching ./backend for changes...");
 
         let debounce_duration = Duration::from_millis(500);
         let mut last_event = Instant::now() - debounce_duration;
@@ -31,7 +31,7 @@ pub fn start_js_watcher() -> NotifyResult<thread::JoinHandle<()>> {
                     println!("Change detected. Bundling JS...");
 
                     let output = Command::new("./esbuild.exe")
-                        .arg("logic/index.js")
+                        .arg("backend/index.js")
                         .arg("--bundle")
                         .arg("--platform=neutral")
                         .arg("--format=esm")

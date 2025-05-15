@@ -39,7 +39,7 @@ Krab-JS server is a lightweight, self-contained HTTP server and Javascript Runti
 
 ```bash
 .
-├── logic/             # JavaScript backend code (entry = logic/index.js)
+├── backend/             # JavaScript backend code (entry = logic/index.js)
 ├── dist/              # Auto-bundled JS output (bundle.js)
 ├── esbuild.exe        # Local esbuild binary for bundling
 ├── src/
@@ -113,4 +113,4 @@ Cross compile to Mac:
 TBD
 ```
 
-After building, go to `./target/release/backend_server`, copy over `logic`, `dist`, `esbuild.exe` from `root of project`. Now you are ready to zip the target directory `backend_server` or run the `backend_server.exe`. Build on the API inside `./logic`.
+After building, go to `./target/release/backend_server`, copy over `backend`, `dist`, `esbuild.exe` from `root of project`. Now you are ready to zip the target directory `backend_server` or run the `backend_server.exe`. Build on the API inside `./logic`.
