@@ -32,6 +32,7 @@ version = "0.1.0"
 dependencies = [
  "boa_engine",
  "notify",
+ "percent-encoding",
  "serde_json",
  "tiny_http",
  "url",

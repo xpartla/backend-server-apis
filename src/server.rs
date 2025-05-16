@@ -1,6 +1,7 @@
 use tiny_http::{Server, Method};
 use crate::utils::{create_bad_request_response, create_json_response, create_not_found_response};
 use crate::js_engine::{process_post_with_js, process_get_with_js};
+use crate::serve_static_files::{serve_static_file};
 
 pub fn run() {
     let server = Server::http("0.0.0.0:8000").unwrap();
@@ -9,8 +10,15 @@ pub fn run() {
     for mut request in server.incoming_requests() {
         let method = request.method().clone();
         let path = request.url().to_string();
-
         let mut body = String::new();
+        let clean_path = path.split('?').next().unwrap_or("");
+        
+        if let Some(static_response) = serve_static_file(clean_path) {
+            request.respond(static_response).unwrap();
+            println!("Static file serving from {}", path);
+            continue;
+        }
+        
         if let Err(_) = request.as_reader().read_to_string(&mut body) {
             request.respond(create_bad_request_response()).unwrap();
             continue;
